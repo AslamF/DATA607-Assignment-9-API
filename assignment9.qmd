@@ -1,0 +1,80 @@
+---
+title: "assignment9"
+format: html
+editor: visual
+---
+
+## Approach 
+
+Learn how to create an API key and then access that API key in code. Fetching data from an API and parsing through it.
+
+## Code Base 
+
+### Library 
+
+```{r}
+library(dplyr)
+library(stringr)
+library(httr2)
+library(purrr)
+```
+
+### Authentication 
+
+```{r}
+
+Sys.setenv(NYT_API_KEY = "UjAKE8AgetLZdxKXfCsEO9G1vOkKnhQGNotGmKZHRA3knAAb")
+api_key <- Sys.getenv("NYT_API_KEY")
+
+if (nchar(api_key) == 0) {
+  stop("NYT_API_KEY environment variable is not set.")
+}
+
+```
+
+### Fetch Data
+
+```{r}
+
+fetch_most_viewed <- function(section = "all-sections", period = 30) {
+  url <- paste0(
+    "https://api.nytimes.com/svc/mostpopular/v2/mostviewed/",
+    section, "/", period, ".json"
+  )
+  request(url) |>
+    req_url_query(`api-key` = api_key) |>
+    req_perform() |>
+    resp_body_json(simplifyVector = FALSE)
+}
+
+raw <- fetch_most_viewed()
+
+```
+
+### Into Tiny Data Frame 
+
+```{r}
+parse_article <- function(a) {
+  tibble(
+    title        = a$title          %||% NA_character_,
+    section      = a$section        %||% NA_character_,
+    byline       = a$byline         %||% NA_character_,
+    abstract     = a$abstract       %||% NA_character_,
+    published_dt = as.Date(a$published_date %||% NA_character_),
+    url          = a$url            %||% NA_character_
+  )
+}
+
+articles <- map(raw$results, parse_article) |>
+  bind_rows() |>
+  mutate(byline = str_remove(byline, "^By "))
+
+print(articles)
+
+articles |>
+  count(section, sort = TRUE)
+```
+
+### Conclusion
+
+The API endpoint I selected was the "Most Popular API" from the Ny times developer page. I wanted to explore the question "What is the most popular or most read section in the New York Times newspaper?" Through this API I was able to collect the most popular articles and what category they fall under. I was then able to see the frequency of each articles category and display that data to see the most popular or read section which comes out to be "U.S". Following that is opinion but U.S is unarguable the most popular.
